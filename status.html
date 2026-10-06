@@ -84,6 +84,9 @@
 </div>
 
 <script>
+    const JSONBIN_BIN_ID = "66fbf4a9ad19ca34f8af9082";
+    const JSONBIN_API_KEY = "$2a$10$fV2eL3.DqY9Vq9Z8w/H2cO3vQG4u6e/S4aQ5b6c7d8e9f0g1h2i3j";
+
     const urlParams = new URLSearchParams(window.location.search);
     const role = (urlParams.get('role') || 'cm').toLowerCase();
     const staff = urlParams.get('staff') || 'Staff';
@@ -100,9 +103,8 @@
     const el = urlParams.get('el') || '';
 
     const gmPhone = "601116316020"; 
-    
-    // Updated URL for bbc-off account
     const githubBaseUrl = "https://bbc-off.github.io/leave-application/status.html";
+    const githubFormUrl = "https://bbc-off.github.io/leave-application/index.html";
 
     document.getElementById('dispStaff').innerText = staff + " (ID: " + id + ")";
     document.getElementById('dispBranch').innerText = branch;
@@ -124,6 +126,7 @@
     
     var leaveDatesSummary = '';
     var leaveTypeSummary = '';
+    var leaveToDate = '';
 
     function addRow(type, val) {
         if(val) {
@@ -131,6 +134,7 @@
             tbody.innerHTML += `<tr><td>${type}</td><td>${parts[0] || '-'}</td><td>${parts[1] || '-'}</td><td>${parts[2] || '-'}</td></tr>`;
             leaveDatesSummary = (parts[0] || '') + ' to ' + (parts[1] || '');
             leaveTypeSummary = type;
+            leaveToDate = parts[1] || parts[0] || '';
         }
     }
     addRow('Annual Leave', al);
@@ -155,15 +159,39 @@
         }
     }
 
-    function saveApprovedLeaveToStorage() {
-        var approvedList = JSON.parse(localStorage.getItem('approvedLeaves') || '[]');
-        approvedList.push({
-            staff: staff,
-            branch: branch,
-            dates: leaveDatesSummary || 'N/A',
-            type: leaveTypeSummary || 'Leave'
+    // மேலாளர் Approve செய்யும்போது Cloud Database (JSONBin)-இல் விபரங்களைச் சேமித்தல்
+    function saveApprovedLeaveToCloud(callback) {
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        })
+        .then(res => res.json())
+        .then(data => {
+            var approvedList = data.record || [];
+            approvedList.push({
+                staff: staff,
+                branch: branch,
+                dates: leaveDatesSummary || 'N/A',
+                type: leaveTypeSummary || 'Leave',
+                toDate: leaveToDate
+            });
+
+            return fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_API_KEY
+                },
+                body: JSON.stringify(approvedList)
+            });
+        })
+        .then(() => {
+            if (callback) callback();
+        })
+        .catch(err => {
+            alert("Database Error: Unable to sync online.");
+            if (callback) callback();
         });
-        localStorage.setItem('approvedLeaves', JSON.stringify(approvedList));
     }
 
     function downloadFilledPDF() {
@@ -204,7 +232,7 @@
             var currentParams = window.location.search.replace('role=cm', 'role=gm');
             var gmLink = githubBaseUrl + currentParams;
             
-            var approveStaffMsg = "Hello " + staff + ", your leave request for " + branch + " has been APPROVED by Cinema Manager. ✅";
+            var approveStaffMsg = "Hello " + staff + ", your leave request for " + branch + " has been APPROVED by Cinema Manager. ✅\n\nView Schedule:\n" + githubFormUrl;
             
             var gmMessage = "📋 *LEAVE APPLICATION (FORWARDED BY CM)*\n" +
                             "------------------------------------\n" +
@@ -217,7 +245,7 @@
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
                     📥 Download Completed Staff PDF
                 </button>
-                <button class="btn btn-approve" onclick="saveApprovedLeaveToStorage(); window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(approveStaffMsg)}';">
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToCloud(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(approveStaffMsg)}'; });">
                     ✅ Approved - Send to Staff
                 </button>
                 <a class="btn btn-forward" href="https://api.whatsapp.com/send?phone=${gmPhone}&text=${encodeURIComponent(gmMessage)}">
@@ -228,13 +256,13 @@
                 </button>
             `;
         } else if (role === 'gm') {
-            var finalApproveMsg = "Hello " + staff + ", your leave application for " + branch + " has received FINAL APPROVAL from General Manager / HR. ✅";
+            var finalApproveMsg = "Hello " + staff + ", your leave application for " + branch + " has received FINAL APPROVAL from General Manager / HR. ✅\n\nView Schedule:\n" + githubFormUrl;
 
             actionArea.innerHTML = `
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
                     📥 Download Completed Staff PDF
                 </button>
-                <button class="btn btn-approve" onclick="saveApprovedLeaveToStorage(); window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(finalApproveMsg)}';">
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToCloud(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(finalApproveMsg)}'; });">
                     ✅ Final Approve
                 </button>
                 <button class="btn btn-reject" onclick="handleRejection('General Manager / HR')">
