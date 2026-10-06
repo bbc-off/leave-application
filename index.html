@@ -212,8 +212,7 @@
 </div>
 
 <script>
-    const JSONBIN_BIN_ID = "66fbf4a9ad19ca34f8af9082";
-    const JSONBIN_API_KEY = "$2a$10$fV2eL3.DqY9Vq9Z8w/H2cO3vQG4u6e/S4aQ5b6c7d8e9f0g1h2i3j"; // Configured Cloud Key
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybsWr-b7kIzc2ITshxZKWVfsdvh9l1CsCn4qiWvWUFaBgPdTgRYdm1wmBaVkIT86E/exec";
 
     const staffDatabase = {
         "Perling Mall": [
@@ -306,7 +305,7 @@
         resizeCanvas();
         document.getElementById('applyDate').valueAsDate = new Date();
         updateStaffList();
-        fetchCloudApprovedLeaves();
+        fetchGoogleSheetApprovedLeaves();
     });
 
     function getPos(e) {
@@ -354,21 +353,17 @@
         }
     }
 
-    // JSONBin Cloud Database-இல் இருந்து அனைவரும் பார்க்கக் கூடிய தகவல்களைப் பெறுதல்
-    function fetchCloudApprovedLeaves() {
+    // Google Sheet-இல் இருந்து தகவல்களைப் பெறுதல்
+    function fetchGoogleSheetApprovedLeaves() {
         var tbody = document.getElementById('approvedTableBody');
         
-        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
-        })
+        fetch(GOOGLE_SCRIPT_URL)
         .then(response => response.json())
         .then(data => {
-            var approvedList = data.record || [];
+            var approvedList = data || [];
             var today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // விடுமுறை காலம் முடிந்ததுமே தானாக மறையும் (Auto Expiry Filter)
             var activeLeaves = approvedList.filter(function(item) {
                 if (item.toDate) {
                     var leaveEndDate = new Date(item.toDate);
