@@ -101,6 +101,18 @@
             </div>
         </div>
 
+        <!-- Custom Staff Name Input (When 'Other' is selected) -->
+        <div class="row" id="otherStaffRow" style="display: none; margin-top: -4px;">
+            <div class="col form-group">
+                <label>Enter Name (Other):</label>
+                <input type="text" id="customStaffName" placeholder="Full Name">
+            </div>
+            <div class="col form-group">
+                <label>Enter ID (Other):</label>
+                <input type="text" id="customStaffID" placeholder="e.g. 13">
+            </div>
+        </div>
+
         <div class="form-group">
             <label>Contact Phone:</label>
             <input type="text" id="telNo" placeholder="e.g. 012-3456789">
@@ -179,7 +191,7 @@
                         </tr>
                     </thead>
                     <tbody id="approvedTableBody">
-                        <tr><td colspan="3" style="color:#64748b;">No approved leaves recorded.</td></tr>
+                        <tr><td colspan="3" style="color:#64748b;">Loading approved schedule...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -200,6 +212,9 @@
 </div>
 
 <script>
+    const JSONBIN_BIN_ID = "66fbf4a9ad19ca34f8af9082";
+    const JSONBIN_API_KEY = "$2a$10$fV2eL3.DqY9Vq9Z8w/H2cO3vQG4u6e/S4aQ5b6c7d8e9f0g1h2i3j"; // Configured Cloud Key
+
     const staffDatabase = {
         "Perling Mall": [
             { id: "1", name: "Ainaa" },
@@ -213,14 +228,16 @@
             { id: "9", name: "Bella" },
             { id: "10", name: "Maha" },
             { id: "11", name: "Rafie" },
-            { id: "12", name: "Ran(PT)" }
+            { id: "12", name: "Ran(PT)" },
+            { id: "other", name: "Other" }
         ],
         "Pelangi Leisure Mall": [
             { id: "1", name: "Kimi" },
             { id: "2", name: "Lala" },
             { id: "3", name: "Krish" },
             { id: "4", name: "Suha" },
-            { id: "5", name: "Atul" }
+            { id: "5", name: "Atul" },
+            { id: "other", name: "Other" }
         ]
     };
 
@@ -234,18 +251,45 @@
                 var opt = document.createElement('option');
                 opt.value = staff.name;
                 opt.setAttribute('data-id', staff.id);
-                opt.innerText = staff.name + " (ID: " + staff.id + ")";
+                opt.innerText = (staff.id === "other") ? "-- Other (Type Name) --" : staff.name + " (ID: " + staff.id + ")";
                 staffSelect.appendChild(opt);
             });
         }
         document.getElementById('staffID').value = '';
+        document.getElementById('otherStaffRow').style.display = 'none';
     }
 
     function autoFillStaffID() {
         var staffSelect = document.getElementById('staffName');
         var selectedOpt = staffSelect.options[staffSelect.selectedIndex];
         var staffID = selectedOpt.getAttribute('data-id') || '';
-        document.getElementById('staffID').value = staffID;
+        var otherRow = document.getElementById('otherStaffRow');
+
+        if (staffSelect.value === "Other") {
+            otherRow.style.display = 'flex';
+            document.getElementById('staffID').value = '';
+            document.getElementById('staffID').removeAttribute('readonly');
+        } else {
+            otherRow.style.display = 'none';
+            document.getElementById('staffID').value = staffID;
+            document.getElementById('staffID').setAttribute('readonly', 'readonly');
+        }
+    }
+
+    function getSelectedStaffName() {
+        var staffSelect = document.getElementById('staffName').value;
+        if (staffSelect === "Other") {
+            return document.getElementById('customStaffName').value || 'Staff';
+        }
+        return staffSelect || 'Staff';
+    }
+
+    function getSelectedStaffID() {
+        var staffSelect = document.getElementById('staffName').value;
+        if (staffSelect === "Other") {
+            return document.getElementById('customStaffID').value || 'N/A';
+        }
+        return document.getElementById('staffID').value || 'N/A';
     }
 
     var canvas = document.getElementById('sigCanvas');
@@ -262,7 +306,7 @@
         resizeCanvas();
         document.getElementById('applyDate').valueAsDate = new Date();
         updateStaffList();
-        loadApprovedLeaves();
+        fetchCloudApprovedLeaves();
     });
 
     function getPos(e) {
@@ -310,25 +354,52 @@
         }
     }
 
-    function loadApprovedLeaves() {
-        var approvedList = JSON.parse(localStorage.getItem('approvedLeaves') || '[]');
+    // JSONBin Cloud Database-இல் இருந்து அனைவரும் பார்க்கக் கூடிய தகவல்களைப் பெறுதல்
+    function fetchCloudApprovedLeaves() {
         var tbody = document.getElementById('approvedTableBody');
-        if (approvedList.length > 0) {
-            tbody.innerHTML = '';
-            approvedList.forEach(function(item) {
-                tbody.innerHTML += `<tr>
-                    <td><b>${item.staff}</b> (${item.branch})</td>
-                    <td>${item.dates}</td>
-                    <td><span style="color:#16a34a; font-weight:bold;">${item.type}</span></td>
-                </tr>`;
+        
+        fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        })
+        .then(response => response.json())
+        .then(data => {
+            var approvedList = data.record || [];
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // விடுமுறை காலம் முடிந்ததுமே தானாக மறையும் (Auto Expiry Filter)
+            var activeLeaves = approvedList.filter(function(item) {
+                if (item.toDate) {
+                    var leaveEndDate = new Date(item.toDate);
+                    leaveEndDate.setHours(23, 59, 59, 999);
+                    return leaveEndDate >= today;
+                }
+                return true;
             });
-        }
+
+            if (activeLeaves.length > 0) {
+                tbody.innerHTML = '';
+                activeLeaves.forEach(function(item) {
+                    tbody.innerHTML += `<tr>
+                        <td><b>${item.staff}</b> (${item.branch})</td>
+                        <td>${item.dates}</td>
+                        <td><span style="color:#16a34a; font-weight:bold;">${item.type}</span></td>
+                    </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="color:#64748b;">No active approved leaves recorded.</td></tr>';
+            }
+        })
+        .catch(err => {
+            tbody.innerHTML = '<tr><td colspan="3" style="color:#64748b;">No active approved leaves recorded.</td></tr>';
+        });
     }
 
     function generatePDF() {
         var element = document.getElementById('formPaper');
         var approvedSec = document.getElementById('approvedSection');
-        var name = document.getElementById('staffName').value || 'Staff';
+        var name = getSelectedStaffName();
         
         approvedSec.style.display = "none";
         
@@ -359,8 +430,8 @@
 
         var branch = document.getElementById('cinemaBranch').value;
         var date = document.getElementById('applyDate').value;
-        var name = document.getElementById('staffName').value || 'Staff';
-        var id = document.getElementById('staffID').value || 'N/A';
+        var name = getSelectedStaffName();
+        var id = getSelectedStaffID();
         var tel = document.getElementById('telNo').value || 'N/A';
         var addr = document.getElementById('contactWhileLeave').value || 'N/A';
         var reason = document.getElementById('leaveReason').value || 'N/A';
@@ -398,7 +469,6 @@
             "&mc=" + encodeURIComponent(mcStr) +
             "&el=" + encodeURIComponent(elStr);
 
-        // Updated URL for bbc-off account
         var statusLink = "https://bbc-off.github.io/leave-application/status.html" + queryParams;
 
         generatePDF();
