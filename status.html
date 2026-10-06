@@ -3,74 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leave Status Approval</title>
+    <title>Leave Management Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 40px 15px; background: #f4f7f6; margin: 0; }
-        .card { background: white; border-radius: 10px; padding: 30px 20px; max-width: 420px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); box-sizing: border-box; }
-        .status-badge { font-size: 15pt; font-weight: bold; margin-bottom: 15px; }
-        .approved { color: #27ae60; }
-        .rejected { color: #e74c3c; }
-        .btn-wa { display: block; margin: 20px auto 0 auto; background: #25D366; color: white; padding: 12px 15px; text-decoration: none; font-weight: bold; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 20px 10px; background: #f0f4f8; color: #1e293b; margin: 0; }
+        .card { background: #ffffff; border-radius: 12px; padding: 20px 16px; max-width: 440px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; box-sizing: border-box; }
+        .title { font-size: 15pt; font-weight: bold; color: #0284c7; text-transform: uppercase; margin-bottom: 4px; }
+        .subtitle { font-size: 8.5pt; color: #64748b; margin-bottom: 16px; }
+        
+        .info-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; text-align: left; margin-bottom: 16px; font-size: 9pt; color: #334155; line-height: 1.6; }
+        
+        .pass-box { margin-bottom: 15px; padding: 10px; background: #fffbe3; border: 1px solid #ffe58f; border-radius: 6px; }
+        .pass-input { width: 100%; padding: 10px; font-size: 11pt; text-align: center; letter-spacing: 2px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; margin-top: 6px; }
+        .btn-pass { margin-top: 8px; width: 100%; padding: 10px; background: #0284c7; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 10px; }
+        .btn { display: block; padding: 12px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 9.5pt; color: white; border: none; cursor: pointer; text-align: center; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-pdf-dl { background-color: #7c3aed; }
+        .btn-approve { background-color: #16a34a; }
+        .btn-forward { background-color: #0284c7; }
+        .btn-reject { background-color: #dc2626; }
+
+        #pdfRenderPaper { display: none; text-align: left; background: #fff; color: #000; padding: 15px; border: 1.5px solid #2d3748; font-size: 9pt; line-height: 1.4; }
+        #pdfRenderPaper table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        #pdfRenderPaper th, #pdfRenderPaper td { border: 1px solid #cbd5e0; padding: 6px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="statusBadge" class="status-badge">Processing...</div>
-    <p id="statusDesc" style="color: #555; line-height: 1.5;"></p>
+    <div class="title">Blockbuster Cineplexes</div>
+    <div class="subtitle">Leave Approval & Review Portal</div>
+
+    <div class="info-box">
+        <b>Staff Name:</b> <span id="dispStaff">-</span><br>
+        <b>Branch:</b> <span id="dispBranch">-</span><br>
+        <b>Application Date:</b> <span id="dispDate">-</span><br>
+        <b>Reason:</b> <span id="dispReason">-</span><br>
+        <b>Portal Access:</b> <span id="dispRole" style="color: #0284c7; font-weight: bold;">-</span>
+    </div>
+
+    <!-- Password Verification Section -->
+    <div id="authSection" class="pass-box">
+        <label style="font-size: 8.5pt; font-weight: bold; color: #856404;">🔒 Manager Security Verification:</label>
+        <input type="password" id="passInput" class="pass-input" placeholder="Enter PIN / Password">
+        <button class="btn-pass" onclick="verifyPassword()">Unlock Portal</button>
+        <p id="errorMsg" style="color: #dc2626; font-size: 8pt; margin: 6px 0 0 0; display: none;">Wrong Password! Unauthorized Access.</p>
+    </div>
+
+    <!-- Action Buttons (Hidden until Password Entry) -->
+    <div id="actionArea" class="btn-group" style="display: none;"></div>
+</div>
+
+<div id="pdfRenderPaper">
+    <div style="text-align: center; border-bottom: 2px solid #2d3748; padding-bottom: 8px; margin-bottom: 12px;">
+        <h3 style="margin:0; font-size: 16pt; text-transform: uppercase;">Blockbuster Cineplexes</h3>
+        <h5 style="margin:0; color: #dc2626; letter-spacing: 1px;">LEAVE APPLICATION FORM</h5>
+    </div>
+    <p><b>Branch:</b> <span id="pdfBranch"></span> | <b>Date:</b> <span id="pdfDate"></span></p>
+    <p><b>Staff Name:</b> <span id="pdfStaff"></span> | <b>ID:</b> <span id="pdfID"></span></p>
+    <p><b>Contact No:</b> <span id="pdfTel"></span></p>
+    <p><b>Address While Leave:</b> <span id="pdfAddr"></span></p>
+    <p><b>Reason:</b> <span id="pdfReason"></span></p>
     
-    <div id="actionArea"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Days</th>
+            </tr>
+        </thead>
+        <tbody id="pdfTableBody"></tbody>
+    </table>
+    
+    <p style="margin-top: 12px;"><b>Re-joining Date:</b> <span id="pdfRejoining"></span></p>
 </div>
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role'); 
-    const status = urlParams.get('status') || 'Updated';
+    const role = (urlParams.get('role') || 'cm').toLowerCase();
     const staff = urlParams.get('staff') || 'Staff';
     const branch = urlParams.get('branch') || 'Cineplex';
+    const date = urlParams.get('date') || '-';
+    const id = urlParams.get('id') || '-';
+    const tel = urlParams.get('tel') || '-';
+    const addr = urlParams.get('addr') || '-';
+    const reason = urlParams.get('reason') || '-';
+    const rejoining = urlParams.get('rejoining') || '-';
+    
+    const al = urlParams.get('al') || '';
+    const mc = urlParams.get('mc') || '';
+    const el = urlParams.get('el') || '';
 
     const gmPhone = "601116316020"; 
+    const githubBaseUrl = "https://george191919.github.io/leave-application/status.html";
 
-    const githubBaseUrl = window.location.href.split('?')[0];
+    document.getElementById('dispStaff').innerText = staff + " (ID: " + id + ")";
+    document.getElementById('dispBranch').innerText = branch;
+    document.getElementById('dispDate').innerText = date;
+    document.getElementById('dispReason').innerText = reason;
+    document.getElementById('dispRole').innerText = (role === 'gm') ? "General Manager / HR" : "Cinema Manager";
 
-    var badge = document.getElementById('statusBadge');
-    var desc = document.getElementById('statusDesc');
-    var actionArea = document.getElementById('actionArea');
+    document.getElementById('pdfBranch').innerText = branch;
+    document.getElementById('pdfDate').innerText = date;
+    document.getElementById('pdfStaff').innerText = staff;
+    document.getElementById('pdfID').innerText = id;
+    document.getElementById('pdfTel').innerText = tel;
+    document.getElementById('pdfAddr').innerText = addr;
+    document.getElementById('pdfReason').innerText = reason;
+    document.getElementById('pdfRejoining').innerText = rejoining;
 
-    if (role === 'cm') {
-        if (status === 'Recommended') {
-            badge.innerText = "Recommended by Cinema Manager";
-            badge.className = "status-badge approved";
-            desc.innerText = "Leave request for " + staff + " (" + branch + ") has been RECOMMENDED. Forwarding to General Manager / HR for Final Approval.";
+    var tbody = document.getElementById('pdfTableBody');
+    tbody.innerHTML = '';
+    
+    var leaveDatesSummary = '';
+    var leaveTypeSummary = '';
 
-            var gmApproveLink = githubBaseUrl + "?role=gm&status=Approved&staff=" + encodeURIComponent(staff) + "&branch=" + encodeURIComponent(branch);
-            var gmRejectLink = githubBaseUrl + "?role=gm&status=Rejected&staff=" + encodeURIComponent(staff) + "&branch=" + encodeURIComponent(branch);
-
-            var gmMessage = "📄 *LEAVE APPLICATION (STEP 2: FINAL APPROVAL)*%0A%0A" +
-                            "• *Branch:* " + branch + "%0A" +
-                            "• *Staff:* " + staff + "%0A" +
-                            "• *Cinema Manager Status:* RECOMMENDED ✅%0A%0A" +
-                            "------------------------------------%0A" +
-                            "⚡ *GENERAL MANAGER / HR ACTION REQUIRED:*%0A%0A" +
-                            "✅ *FINAL APPROVE:* " + gmApproveLink + "%0A%0A" +
-                            "❌ *FINAL REJECT:* " + gmRejectLink;
-
-            actionArea.innerHTML = '<a class="btn-wa" href="https://api.whatsapp.com/send?phone=' + gmPhone + '&text=' + gmMessage + '">📲 Forward to General Manager / HR</a>';
-        } else {
-            badge.innerText = "Rejected by Cinema Manager";
-            badge.className = "status-badge rejected";
-            desc.innerText = "Leave request for " + staff + " (" + branch + ") has been REJECTED by Cinema Manager.";
-
-            var staffReplyMsg = "Hello " + staff + ", your leave request for " + branch + " has been REJECTED by Cinema Manager.";
-            actionArea.innerHTML = '<a class="btn-wa" href="https://api.whatsapp.com/send?text=' + encodeURIComponent(staffReplyMsg) + '">💬 Notify Staff via WhatsApp</a>';
+    function addRow(type, val) {
+        if(val) {
+            var parts = val.split('~');
+            tbody.innerHTML += `<tr><td>${type}</td><td>${parts[0] || '-'}</td><td>${parts[1] || '-'}</td><td>${parts[2] || '-'}</td></tr>`;
+            leaveDatesSummary = (parts[0] || '') + ' to ' + (parts[1] || '');
+            leaveTypeSummary = type;
         }
-    } else if (role === 'gm') {
-        badge.innerText = "Final Status: " + status;
-        badge.className = "status-badge " + (status.toLowerCase() === 'approved' ? 'approved' : 'rejected');
-        desc.innerText = "Leave application for " + staff + " (" + branch + ") has been " + status.toUpperCase() + " by General Manager / HR.";
+    }
+    addRow('Annual Leave', al);
+    addRow('Medical Leave', mc);
+    addRow('Emergency Leave', el);
+    if(!al && !mc && !el) {
+        tbody.innerHTML = '<tr><td colspan="4">No leave details provided.</td></tr>';
+    }
 
-        var finalReplyMsg = "Hello " + staff + ", your leave application for " + branch + " has been *" + status.toUpperCase() + "* by General Manager / HR.%0A%0ABlockbuster Cineplexes";
-        actionArea.innerHTML = '<a class="btn-wa" href="https://api.whatsapp.com/send?text=' + encodeURIComponent(finalReplyMsg) + '">💬 Send Final Decision to Staff</a>';
+    function verifyPassword() {
+        var enteredPass = document.getElementById('passInput').value;
+        var errorMsg = document.getElementById('errorMsg');
+        var authSection = document.getElementById('authSection');
+        var actionArea = document.getElementById('actionArea');
+
+        if ((role === 'cm' && enteredPass === '1717') || (role === 'gm' && enteredPass === '1919')) {
+            authSection.style.display = 'none';
+            actionArea.style.display = 'flex';
+            loadPortalButtons();
+        } else {
+            errorMsg.style.display = 'block';
+        }
+    }
+
+    function saveApprovedLeaveToStorage() {
+        var approvedList = JSON.parse(localStorage.getItem('approvedLeaves') || '[]');
+        approvedList.push({
+            staff: staff,
+            branch: branch,
+            dates: leaveDatesSummary || 'N/A',
+            type: leaveTypeSummary || 'Leave'
+        });
+        localStorage.setItem('approvedLeaves', JSON.stringify(approvedList));
+    }
+
+    function downloadFilledPDF() {
+        var element = document.getElementById('pdfRenderPaper');
+        element.style.display = 'block';
+        element.style.width = "650px";
+
+        var opt = {
+            margin:       [8, 8, 8, 8],
+            filename:     'Completed_Leave_Form_' + staff + '.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(function() {
+            element.style.display = 'none';
+            element.style.width = "auto";
+        }).catch(function(err) {
+            element.style.display = 'none';
+            element.style.width = "auto";
+            alert("PDF Download Error: " + err);
+        });
+    }
+
+    function handleRejection(approverRole) {
+        var rejectReason = prompt("Please enter reason for rejection:");
+        if (rejectReason !== null && rejectReason.trim() !== "") {
+            var msg = "Hello " + staff + ", your leave request for " + branch + " has been REJECTED by " + approverRole + ".\n\n❌ *Reason:* " + rejectReason;
+            window.location.href = "https://api.whatsapp.com/send?text=" + encodeURIComponent(msg);
+        }
+    }
+
+    function loadPortalButtons() {
+        var actionArea = document.getElementById('actionArea');
+
+        if (role === 'cm') {
+            var currentParams = window.location.search.replace('role=cm', 'role=gm');
+            var gmLink = githubBaseUrl + currentParams;
+            
+            var approveStaffMsg = "Hello " + staff + ", your leave request for " + branch + " has been APPROVED by Cinema Manager. ✅";
+            
+            var gmMessage = "📋 *LEAVE APPLICATION (FORWARDED BY CM)*\n" +
+                            "------------------------------------\n" +
+                            "🏢 *Branch:* " + branch + "\n" +
+                            "👤 *Staff:* " + staff + " (ID: " + id + ")\n" +
+                            "👍 *CM Recommendation:* RECOMMENDED / APPROVED ✅\n\n" +
+                            "🔗 *GM / HR APPROVAL LINK:*\n" + gmLink;
+
+            actionArea.innerHTML = `
+                <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
+                    📥 Download Completed Staff PDF
+                </button>
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToStorage(); window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(approveStaffMsg)}';">
+                    ✅ Approved - Send to Staff
+                </button>
+                <a class="btn btn-forward" href="https://api.whatsapp.com/send?phone=${gmPhone}&text=${encodeURIComponent(gmMessage)}">
+                    📲 Send Application to GM
+                </a>
+                <button class="btn btn-reject" onclick="handleRejection('Cinema Manager')">
+                    ❌ Reject Request
+                </button>
+            `;
+        } else if (role === 'gm') {
+            var finalApproveMsg = "Hello " + staff + ", your leave application for " + branch + " has received FINAL APPROVAL from General Manager / HR. ✅";
+
+            actionArea.innerHTML = `
+                <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
+                    📥 Download Completed Staff PDF
+                </button>
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToStorage(); window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(finalApproveMsg)}';">
+                    ✅ Final Approve
+                </button>
+                <button class="btn btn-reject" onclick="handleRejection('General Manager / HR')">
+                    ❌ Reject Request
+                </button>
+            `;
+        }
     }
 </script>
 
