@@ -353,7 +353,7 @@
         }
     }
 
-    // Google Sheet-இல் இருந்து தகவல்களைப் பெறுதல்
+    // Google Sheet-இல் இருந்து தகவல்களைப் பெற்றுத் திரும்பத் திரும்ப உள்ளவற்றை நீக்கித் திரையிடுதல்
     function fetchGoogleSheetApprovedLeaves() {
         var tbody = document.getElementById('approvedTableBody');
         
@@ -364,6 +364,7 @@
             var today = new Date();
             today.setHours(0, 0, 0, 0);
 
+            // 1. காலம் கடந்த விடுமுறைகளை நீக்குதல்
             var activeLeaves = approvedList.filter(function(item) {
                 if (item.toDate) {
                     var leaveEndDate = new Date(item.toDate);
@@ -373,9 +374,21 @@
                 return true;
             });
 
-            if (activeLeaves.length > 0) {
+            // 2. திரும்பத் திரும்ப உள்ள ஒரே விவரங்களை நீக்கி ஒன்றை மட்டும் எடுத்தல் (Remove Duplicates)
+            var uniqueLeaves = [];
+            var seen = new Set();
+
+            activeLeaves.forEach(function(item) {
+                var key = item.staff + "_" + item.branch + "_" + item.dates + "_" + item.type;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueLeaves.push(item);
+                }
+            });
+
+            if (uniqueLeaves.length > 0) {
                 tbody.innerHTML = '';
-                activeLeaves.forEach(function(item) {
+                uniqueLeaves.forEach(function(item) {
                     tbody.innerHTML += `<tr>
                         <td><b>${item.staff}</b> (${item.branch})</td>
                         <td>${item.dates}</td>
