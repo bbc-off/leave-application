@@ -158,6 +158,12 @@
                         <td><input type="date" id="elTo" onchange="calculateDays('el')"></td>
                         <td><input type="number" id="elDays" readonly placeholder="0"></td>
                     </tr>
+                    <tr>
+                        <td style="text-align: left;"><input type="checkbox" id="otherCb"> Other Leave</td>
+                        <td><input type="date" id="otherFrom" onchange="calculateDays('other')"></td>
+                        <td><input type="date" id="otherTo" onchange="calculateDays('other')"></td>
+                        <td><input type="number" id="otherDays" readonly placeholder="0"></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -353,18 +359,18 @@
         }
     }
 
-    // Google Sheet-இல் இருந்து தகவல்களைப் பெற்றுத் திரும்பத் திரும்ப உள்ளவற்றை நீக்கித் திரையிடுதல்
+    // Google Sheet-இல் இருந்து தாமதமின்றி உடனடித் தரவுகளைப் பெறுதல் (Anti-Cache Query சேர்க்கப்பட்டுள்ளது)
     function fetchGoogleSheetApprovedLeaves() {
         var tbody = document.getElementById('approvedTableBody');
+        var cacheBusterUrl = GOOGLE_SCRIPT_URL + "?cachebust=" + new Date().getTime();
         
-        fetch(GOOGLE_SCRIPT_URL)
+        fetch(cacheBusterUrl)
         .then(response => response.json())
         .then(data => {
             var approvedList = data || [];
             var today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // 1. காலம் கடந்த விடுமுறைகளை நீக்குதல்
             var activeLeaves = approvedList.filter(function(item) {
                 if (item.toDate) {
                     var leaveEndDate = new Date(item.toDate);
@@ -374,7 +380,6 @@
                 return true;
             });
 
-            // 2. திரும்பத் திரும்ப உள்ள ஒரே விவரங்களை நீக்கி ஒன்றை மட்டும் எடுத்தல் (Remove Duplicates)
             var uniqueLeaves = [];
             var seen = new Set();
 
@@ -445,7 +450,7 @@
         var reason = document.getElementById('leaveReason').value || 'N/A';
         var rejoining = document.getElementById('rejoiningDate').value || 'N/A';
 
-        var alStr = '', mcStr = '', elStr = '', leaveSummary = [];
+        var alStr = '', mcStr = '', elStr = '', otStr = '', leaveSummary = [];
         if(document.getElementById('annualCb').checked) {
             var f = document.getElementById('annualFrom').value, t = document.getElementById('annualTo').value, d = document.getElementById('annualDays').value;
             alStr = f + '~' + t + '~' + d;
@@ -461,6 +466,11 @@
             elStr = f + '~' + t + '~' + d;
             leaveSummary.push("Emergency: " + f + " to " + t + " (" + d + " days)");
         }
+        if(document.getElementById('otherCb').checked) {
+            var f = document.getElementById('otherFrom').value, t = document.getElementById('otherTo').value, d = document.getElementById('otherDays').value;
+            otStr = f + '~' + t + '~' + d;
+            leaveSummary.push("Other Leave: " + f + " to " + t + " (" + d + " days)");
+        }
 
         var targetPhone = (branch === "Perling Mall") ? cmPhonePerling : cmPhonePelangi;
         
@@ -475,7 +485,8 @@
             "&rejoining=" + encodeURIComponent(rejoining) +
             "&al=" + encodeURIComponent(alStr) +
             "&mc=" + encodeURIComponent(mcStr) +
-            "&el=" + encodeURIComponent(elStr);
+            "&el=" + encodeURIComponent(elStr) +
+            "&ot=" + encodeURIComponent(otStr);
 
         var statusLink = "https://bbc-off.github.io/leave-application/status.html" + queryParams;
 
