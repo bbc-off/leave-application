@@ -330,7 +330,6 @@
         var approvedSec = document.getElementById('approvedSection');
         var name = document.getElementById('staffName').value || 'Staff';
         
-        // PDF எடுக்கும்போது Approved Schedule பகுதியை மறைத்தல்
         approvedSec.style.display = "none";
         
         var originalWidth = element.style.width;
@@ -346,7 +345,7 @@
 
         html2pdf().set(opt).from(element).save().then(function() {
             element.style.width = originalWidth;
-            approvedSec.style.display = "block"; // PDF எடுத்த பின் திரும்பக் காட்டுதல்
+            approvedSec.style.display = "block";
         }).catch(function(err) {
             element.style.width = originalWidth;
             approvedSec.style.display = "block";
@@ -399,7 +398,8 @@
             "&mc=" + encodeURIComponent(mcStr) +
             "&el=" + encodeURIComponent(elStr);
 
-        var statusLink = "https://george191919.github.io/leave-application/status.html" + queryParams;
+        // Updated URL for bbc-off account
+        var statusLink = "https://bbc-off.github.io/leave-application/status.html" + queryParams;
 
         generatePDF();
 
