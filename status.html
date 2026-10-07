@@ -160,7 +160,6 @@
         }
     }
 
-    // Google Sheet-க்குத் தரவை அனுப்பி, சேமிப்பு உறுதியான பின் அடுத்த கட்டத்திற்குச் செல்லுதல்
     function saveApprovedLeaveToGoogleSheet(callback) {
         var payload = {
             staff: staff,
@@ -191,17 +190,27 @@
         element.style.display = 'block';
         element.style.width = "650px";
 
+        var cleanName = staff.replace(/[^a-zA-Z0-9]/g, "_");
+        var fileName = 'Completed_Leave_Form_' + cleanName + '.pdf';
+
         var opt = {
             margin:       [8, 8, 8, 8],
-            filename:     'Completed_Leave_Form_' + staff + '.pdf',
+            filename:     fileName,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        html2pdf().set(opt).from(element).save().then(function() {
+        html2pdf().set(opt).from(element).outputPdf('datauristring').then(function(pdfBase64) {
             element.style.display = 'none';
             element.style.width = "auto";
+
+            var a = document.createElement('a');
+            a.href = pdfBase64;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }).catch(function(err) {
             element.style.display = 'none';
             element.style.width = "auto";
