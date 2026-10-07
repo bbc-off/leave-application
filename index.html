@@ -58,7 +58,7 @@
 
     @media print {
         body { background: #ffffff !important; padding: 0 !important; }
-        .app-footer, .btn-clear, .approved-section, #otherStaffRow, #attachArea, label[for="fileAttachment"] { display: none !important; }
+        .app-footer, .btn-clear, .approved-section { display: none !important; }
         .paper { box-shadow: none !important; padding: 0 !important; border: none !important; width: 100% !important; max-width: 100% !important; }
         .form-container { border: 1px solid #000 !important; }
         input, select, textarea { background: #fff !important; color: #000 !important; border-color: #ccc !important; }
@@ -125,4 +125,369 @@
                 <label>Address While on Leave:</label>
                 <textarea id="contactWhileLeave" placeholder="Address during leave"></textarea>
             </div>
-            <div
+            <div class="col form-group">
+                <label>Reason for Leave:</label>
+                <textarea id="leaveReason" placeholder="Reason"></textarea>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="leave-table">
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">TYPE</th>
+                        <th>FROM</th>
+                        <th>TO</th>
+                        <th style="width: 18%;">DAYS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="text-align: left;"><input type="checkbox" id="annualCb"> Annual</td>
+                        <td><input type="date" id="annualFrom" onchange="calculateDays('annual')"></td>
+                        <td><input type="date" id="annualTo" onchange="calculateDays('annual')"></td>
+                        <td><input type="number" id="annualDays" readonly placeholder="0"></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left;"><input type="checkbox" id="mcCb"> Medical</td>
+                        <td><input type="date" id="mcFrom" onchange="calculateDays('mc')"></td>
+                        <td><input type="date" id="mcTo" onchange="calculateDays('mc')"></td>
+                        <td><input type="number" id="mcDays" readonly placeholder="0"></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left;"><input type="checkbox" id="elCb"> Emergency</td>
+                        <td><input type="date" id="elFrom" onchange="calculateDays('el')"></td>
+                        <td><input type="date" id="elTo" onchange="calculateDays('el')"></td>
+                        <td><input type="number" id="elDays" readonly placeholder="0"></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left;"><input type="checkbox" id="otherCb"> Other Leave</td>
+                        <td><input type="date" id="otherFrom" onchange="calculateDays('other')"></td>
+                        <td><input type="date" id="otherTo" onchange="calculateDays('other')"></td>
+                        <td><input type="number" id="otherDays" readonly placeholder="0"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row">
+            <div class="col form-group">
+                <label>Signature:</label>
+                <canvas id="sigCanvas"></canvas>
+                <button type="button" class="btn-clear" onclick="clearSignature()">Clear</button>
+            </div>
+            <div class="col form-group">
+                <label>Re-joining Date:</label>
+                <input type="date" id="rejoiningDate">
+            </div>
+        </div>
+
+        <div class="attached-preview" id="attachArea">
+            <span id="noFileMsg" style="color:#64748b; font-size:8pt;">No Document attached.</span>
+            <img id="previewImg" src="" alt="Attachment">
+        </div>
+
+        <div class="approved-section" id="approvedSection">
+            <div class="approved-title">✅ Approved Leave Schedule</div>
+            <div class="table-responsive">
+                <table class="approved-table">
+                    <thead>
+                        <tr>
+                            <th>Staff Name</th>
+                            <th>Leave Dates</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvedTableBody">
+                        <tr><td colspan="3" style="color:#64748b;">Loading approved schedule...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="app-footer">
+    <div style="margin-bottom: 8px;">
+        <label style="font-size: 8.5pt; font-weight: bold; color: #334155;">📎 Attach MC / Document:</label>
+        <input type="file" id="fileAttachment" accept="image/*" onchange="previewFile()" style="font-size: 8.5pt; margin-top:4px; color: #475569;">
+    </div>
+
+    <div class="btn-group">
+        <button class="btn btn-pdf" onclick="generatePDF()">🖨️ Save / Print PDF</button>
+        <button class="btn btn-wa" onclick="sendToCinemaManager()">💬 Send to Manager</button>
+    </div>
+
+    <div>
+        <a href="app-release.apk" download="app-release.apk" class="btn btn-apk">
+            🤖 Download App for Android Users Only (APK)
+        </a>
+    </div>
+</div>
+
+<script>
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybsWr-b7kIzc2ITshxZKWVfsdvh9l1CsCn4qiWvWUFaBgPdTgRYdm1wmBaVkIT86E/exec";
+
+    const staffDatabase = {
+        "Perling Mall": [
+            { id: "1", name: "Ainaa" },
+            { id: "2", name: "Haldi" },
+            { id: "3", name: "George" },
+            { id: "4", name: "Sharrvin" },
+            { id: "5", name: "Jayanath" },
+            { id: "6", name: "Perry" },
+            { id: "7", name: "Kumar" },
+            { id: "8", name: "Alin" },
+            { id: "9", name: "Bella" },
+            { id: "10", name: "Maha" },
+            { id: "11", name: "Rafie" },
+            { id: "12", name: "Ran(PT)" },
+            { id: "other", name: "Other" }
+        ],
+        "Pelangi Leisure Mall": [
+            { id: "1", name: "Kimi" },
+            { id: "2", name: "Lala" },
+            { id: "3", name: "Krish" },
+            { id: "4", name: "Suha" },
+            { id: "5", name: "Atul" },
+            { id: "other", name: "Other" }
+        ]
+    };
+
+    function updateStaffList() {
+        var branch = document.getElementById('cinemaBranch').value;
+        var staffSelect = document.getElementById('staffName');
+        staffSelect.innerHTML = '<option value="">-- Select Staff --</option>';
+        
+        if (staffDatabase[branch]) {
+            staffDatabase[branch].forEach(function(staff) {
+                var opt = document.createElement('option');
+                opt.value = staff.name;
+                opt.setAttribute('data-id', staff.id);
+                opt.innerText = (staff.id === "other") ? "-- Other (Type Name) --" : staff.name + " (ID: " + staff.id + ")";
+                staffSelect.appendChild(opt);
+            });
+        }
+        document.getElementById('staffID').value = '';
+        document.getElementById('otherStaffRow').style.display = 'none';
+    }
+
+    function autoFillStaffID() {
+        var staffSelect = document.getElementById('staffName');
+        var selectedOpt = staffSelect.options[staffSelect.selectedIndex];
+        var staffID = selectedOpt.getAttribute('data-id') || '';
+        var otherRow = document.getElementById('otherStaffRow');
+
+        if (staffSelect.value === "Other") {
+            otherRow.style.display = 'flex';
+            document.getElementById('staffID').value = '';
+            document.getElementById('staffID').removeAttribute('readonly');
+        } else {
+            otherRow.style.display = 'none';
+            document.getElementById('staffID').value = staffID;
+            document.getElementById('staffID').setAttribute('readonly', 'readonly');
+        }
+    }
+
+    function getSelectedStaffName() {
+        var staffSelect = document.getElementById('staffName').value;
+        if (staffSelect === "Other") {
+            return document.getElementById('customStaffName').value || 'Staff';
+        }
+        return staffSelect || 'Staff';
+    }
+
+    function getSelectedStaffID() {
+        var staffSelect = document.getElementById('staffName').value;
+        if (staffSelect === "Other") {
+            return document.getElementById('customStaffID').value || 'N/A';
+        }
+        return document.getElementById('staffID').value || 'N/A';
+    }
+
+    var canvas = document.getElementById('sigCanvas');
+    var ctx = canvas.getContext('2d');
+    var isDrawing = false;
+    ctx.strokeStyle = "#0284c7"; ctx.lineWidth = 2;
+
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth - 2;
+        canvas.height = 70;
+    }
+
+    window.addEventListener('load', function() {
+        resizeCanvas();
+        document.getElementById('applyDate').valueAsDate = new Date();
+        updateStaffList();
+        fetchGoogleSheetApprovedLeaves();
+    });
+
+    function getPos(e) {
+        var rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX || e.touches[0].clientX) - rect.left, y: (e.clientY || e.touches[0].clientY) - rect.top };
+    }
+    function startDrawing(e) { isDrawing = true; var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+    function draw(e) { if (!isDrawing) return; e.preventDefault(); var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+    function stopDrawing() { isDrawing = false; }
+
+    canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('touchstart', startDrawing); canvas.addEventListener('touchmove', draw); canvas.addEventListener('touchend', stopDrawing);
+    function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    function previewFile() {
+        var file = document.getElementById('fileAttachment').files[0];
+        var previewImg = document.getElementById('previewImg');
+        var noFileMsg = document.getElementById('noFileMsg');
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(e) { previewImg.src = e.target.result; previewImg.style.display = 'block'; noFileMsg.style.display = 'none'; }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function calculateDays(prefix) {
+        var fromVal = document.getElementById(prefix + 'From').value;
+        var toVal = document.getElementById(prefix + 'To').value;
+        var cb = document.getElementById(prefix + 'Cb');
+        var daysInput = document.getElementById(prefix + 'Days');
+
+        if (fromVal && toVal) {
+            var d1 = new Date(fromVal);
+            var d2 = new Date(toVal);
+            var diffTime = d2.getTime() - d1.getTime();
+            var diffDays = Math.ceil(diffTime / (1000 * 3600 * 24)) + 1;
+
+            if (diffDays > 0) {
+                daysInput.value = diffDays;
+                cb.checked = true;
+            } else {
+                daysInput.value = '';
+                cb.checked = false;
+            }
+        }
+    }
+
+    function fetchGoogleSheetApprovedLeaves() {
+        var tbody = document.getElementById('approvedTableBody');
+        var cacheBusterUrl = GOOGLE_SCRIPT_URL + "?cachebust=" + new Date().getTime();
+        
+        fetch(cacheBusterUrl)
+        .then(response => response.json())
+        .then(data => {
+            var approvedList = data || [];
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            var activeLeaves = approvedList.filter(function(item) {
+                if (item.toDate) {
+                    var leaveEndDate = new Date(item.toDate);
+                    leaveEndDate.setHours(23, 59, 59, 999);
+                    return leaveEndDate >= today;
+                }
+                return true;
+            });
+
+            var uniqueLeaves = [];
+            var seen = new Set();
+
+            activeLeaves.forEach(function(item) {
+                var key = item.staff + "_" + item.branch + "_" + item.dates + "_" + item.type;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueLeaves.push(item);
+                }
+            });
+
+            if (uniqueLeaves.length > 0) {
+                tbody.innerHTML = '';
+                uniqueLeaves.forEach(function(item) {
+                    tbody.innerHTML += `<tr>
+                        <td><b>${item.staff}</b> (${item.branch})</td>
+                        <td>${item.dates}</td>
+                        <td><span style="color:#16a34a; font-weight:bold;">${item.type}</span></td>
+                    </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="color:#64748b;">No active approved leaves recorded.</td></tr>';
+            }
+        })
+        .catch(err => {
+            tbody.innerHTML = '<tr><td colspan="3" style="color:#64748b;">No active approved leaves recorded.</td></tr>';
+        });
+    }
+
+    function generatePDF() {
+        window.print();
+    }
+
+    function sendToCinemaManager() {
+        var cmPhonePerling = "60187795621";   
+        var cmPhonePelangi = "601164117015";  
+
+        var branch = document.getElementById('cinemaBranch').value;
+        var date = document.getElementById('applyDate').value;
+        var name = getSelectedStaffName();
+        var id = getSelectedStaffID();
+        var tel = document.getElementById('telNo').value || 'N/A';
+        var addr = document.getElementById('contactWhileLeave').value || 'N/A';
+        var reason = document.getElementById('leaveReason').value || 'N/A';
+        var rejoining = document.getElementById('rejoiningDate').value || 'N/A';
+
+        var alStr = '', mcStr = '', elStr = '', otStr = '', leaveSummary = [];
+        if(document.getElementById('annualCb').checked) {
+            var f = document.getElementById('annualFrom').value, t = document.getElementById('annualTo').value, d = document.getElementById('annualDays').value;
+            alStr = f + '~' + t + '~' + d;
+            leaveSummary.push("Annual: " + f + " to " + t + " (" + d + " days)");
+        }
+        if(document.getElementById('mcCb').checked) {
+            var f = document.getElementById('mcFrom').value, t = document.getElementById('mcTo').value, d = document.getElementById('mcDays').value;
+            mcStr = f + '~' + t + '~' + d;
+            leaveSummary.push("Medical: " + f + " to " + t + " (" + d + " days)");
+        }
+        if(document.getElementById('elCb').checked) {
+            var f = document.getElementById('elFrom').value, t = document.getElementById('elTo').value, d = document.getElementById('elDays').value;
+            elStr = f + '~' + t + '~' + d;
+            leaveSummary.push("Emergency: " + f + " to " + t + " (" + d + " days)");
+        }
+        if(document.getElementById('otherCb').checked) {
+            var f = document.getElementById('otherFrom').value, t = document.getElementById('otherTo').value, d = document.getElementById('otherDays').value;
+            otStr = f + '~' + t + '~' + d;
+            leaveSummary.push("Other Leave: " + f + " to " + t + " (" + d + " days)");
+        }
+
+        var targetPhone = (branch === "Perling Mall") ? cmPhonePerling : cmPhonePelangi;
+        
+        var queryParams = "?role=cm" +
+            "&staff=" + encodeURIComponent(name) +
+            "&branch=" + encodeURIComponent(branch) +
+            "&date=" + encodeURIComponent(date) +
+            "&id=" + encodeURIComponent(id) +
+            "&tel=" + encodeURIComponent(tel) +
+            "&addr=" + encodeURIComponent(addr) +
+            "&reason=" + encodeURIComponent(reason) +
+            "&rejoining=" + encodeURIComponent(rejoining) +
+            "&al=" + encodeURIComponent(alStr) +
+            "&mc=" + encodeURIComponent(mcStr) +
+            "&el=" + encodeURIComponent(elStr) +
+            "&ot=" + encodeURIComponent(otStr);
+
+        var statusLink = "https://bbc-off.github.io/leave-application/status.html" + queryParams;
+
+        var message = "📋 *NEW LEAVE APPLICATION*\n" +
+                      "------------------------------------\n" +
+                      "🏢 *Branch:* " + branch + "\n" +
+                      "👤 *Staff:* " + name + " (ID: " + id + ")\n" +
+                      "📅 *Applied Date:* " + date + "\n" +
+                      "📝 *Reason:* " + reason + "\n\n" +
+                      "📌 *Leave Dates:*\n" + (leaveSummary.join("\n") || "Not specified") + "\n\n" +
+                      "🔄 *Re-joining Date:* " + rejoining + "\n" +
+                      "------------------------------------\n" +
+                      "🔗 *CLICK LINK TO REVIEW & APPROVE:*\n" + statusLink;
+
+        var whatsappUrl = "https://api.whatsapp.com/send?phone=" + targetPhone + "&text=" + encodeURIComponent(message);
+
+        window.open(whatsappUrl, '_blank');
+    }
+</script>
+</body>
+</html>
