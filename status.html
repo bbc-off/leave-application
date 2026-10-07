@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leave Management Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 20px 10px; background: #f0f4f8; color: #1e293b; margin: 0; }
         .card { background: #ffffff; border-radius: 12px; padding: 20px 16px; max-width: 440px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; box-sizing: border-box; }
@@ -28,12 +29,6 @@
         #pdfRenderPaper { display: none; text-align: left; background: #fff; color: #000; padding: 15px; border: 1.5px solid #2d3748; font-size: 9pt; line-height: 1.4; }
         #pdfRenderPaper table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         #pdfRenderPaper th, #pdfRenderPaper td { border: 1px solid #cbd5e0; padding: 6px; text-align: center; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #pdfRenderPaper, #pdfRenderPaper * { visibility: visible; }
-            #pdfRenderPaper { display: block !important; position: absolute; left: 0; top: 0; width: 100%; border: none; }
-        }
     </style>
 </head>
 <body>
@@ -150,6 +145,14 @@
         tbody.innerHTML = '<tr><td colspan="4">No leave details provided.</td></tr>';
     }
 
+    window.addEventListener('load', function() {
+        if (urlParams.get('action') === 'download_pdf') {
+            setTimeout(function() {
+                executePdfDownload();
+            }, 1000);
+        }
+    });
+
     function verifyPassword() {
         var enteredPass = document.getElementById('passInput').value;
         var errorMsg = document.getElementById('errorMsg');
@@ -190,8 +193,36 @@
         });
     }
 
+    function executePdfDownload() {
+        var element = document.getElementById('pdfRenderPaper');
+        element.style.display = 'block';
+        element.style.width = "650px";
+
+        var cleanName = staff.replace(/[^a-zA-Z0-9]/g, "_");
+        var fileName = 'Completed_Leave_Form_' + cleanName + '.pdf';
+
+        var opt = {
+            margin:       [8, 8, 8, 8],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(function() {
+            element.style.display = 'none';
+            element.style.width = "auto";
+        }).catch(function(err) {
+            element.style.display = 'none';
+            element.style.width = "auto";
+            alert("PDF Download Error: " + err);
+        });
+    }
+
     function downloadFilledPDF() {
-        window.print();
+        var currentUrl = window.location.href;
+        var webUrl = currentUrl + "&action=download_pdf";
+        window.open(webUrl, '_blank');
     }
 
     function handleRejection(approverRole) {
@@ -220,12 +251,12 @@
 
             actionArea.innerHTML = `
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
-                    🖨️ Save / Print Completed PDF
+                    📥 Download Completed Staff PDF
                 </button>
                 <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(approveStaffMsg)}'; });">
                     ✅ Approved - Send to Staff
                 </button>
-                <a class="btn btn-forward" href="https://api.whatsapp.com/send?phone=${gmPhone}&text=${encodeURIComponent(gmMessage)}">
+                <a class="btn btn-forward" href="https://api.whatsapp.com/phone=${gmPhone}&text=${encodeURIComponent(gmMessage)}">
                     📲 Send Application to GM
                 </a>
                 <button class="btn btn-reject" onclick="handleRejection('Cinema Manager')">
@@ -237,9 +268,9 @@
 
             actionArea.innerHTML = `
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
-                    🖨️ Save / Print Completed PDF
+                    📥 Download Completed Staff PDF
                 </button>
-                <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(finalApproveMsg)}'; });">
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/text=${encodeURIComponent(finalApproveMsg)}'; });">
                     ✅ Final Approve
                 </button>
                 <button class="btn btn-reject" onclick="handleRejection('General Manager / HR')">
