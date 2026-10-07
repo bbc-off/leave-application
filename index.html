@@ -319,6 +319,29 @@
         document.getElementById('applyDate').valueAsDate = new Date();
         updateStaffList();
         fetchGoogleSheetApprovedLeaves();
+
+        // உலாவி (Browser) வழியே திறக்கும் போது தானாக PDF உருவாக்க
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'download_pdf') {
+            setTimeout(function() {
+                var element = document.getElementById('formPaper');
+                var approvedSec = document.getElementById('approvedSection');
+                var name = urlParams.get('staff') || 'Leave_Form';
+                approvedSec.style.display = "none";
+                
+                var opt = {
+                    margin:       [4, 4, 4, 4],
+                    filename:     'Leave_Form_' + name + '.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(function() {
+                    approvedSec.style.display = "block";
+                });
+            }, 1000);
+        }
     });
 
     function getPos(e) {
@@ -415,36 +438,13 @@
         });
     }
 
-    // Android App (WebView) இணக்கமான PDF பதிவிறக்க செயல்பாடு
+    // ஆப்பில் இருந்து உலாவியை (Browser) நேரடியாக திறந்து PDF பதிவிறக்கும் முறை
     function generatePDF() {
-        var element = document.getElementById('formPaper');
-        var approvedSec = document.getElementById('approvedSection');
         var name = getSelectedStaffName();
-        
-        approvedSec.style.display = "none";
-        
-        var originalWidth = element.style.width;
-        element.style.width = "620px";
-
         var cleanName = name.replace(/[^a-zA-Z0-9]/g, "_");
-        var fileName = 'Leave_Form_' + cleanName + '.pdf';
-
-        var opt = {
-            margin:       [4, 4, 4, 4],
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(element).save().then(function() {
-            element.style.width = originalWidth;
-            approvedSec.style.display = "block";
-        }).catch(function(err) {
-            element.style.width = originalWidth;
-            approvedSec.style.display = "block";
-            alert("PDF Generation Error: " + err);
-        });
+        var webUrl = "https://bbc-off.github.io/leave-application/index.html?action=download_pdf&staff=" + encodeURIComponent(cleanName);
+        
+        window.open(webUrl, '_blank');
     }
 
     function sendToCinemaManager() {
@@ -500,8 +500,6 @@
 
         var statusLink = "https://bbc-off.github.io/leave-application/status.html" + queryParams;
 
-        generatePDF();
-
         var message = "📋 *NEW LEAVE APPLICATION*\n" +
                       "------------------------------------\n" +
                       "🏢 *Branch:* " + branch + "\n" +
@@ -515,9 +513,7 @@
 
         var whatsappUrl = "https://api.whatsapp.com/send?phone=" + targetPhone + "&text=" + encodeURIComponent(message);
 
-        setTimeout(function() {
-            window.open(whatsappUrl, '_blank');
-        }, 1200);
+        window.open(whatsappUrl, '_blank');
     }
 </script>
 </body>
