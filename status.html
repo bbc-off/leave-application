@@ -18,7 +18,7 @@
         .btn-pass { margin-top: 8px; width: 100%; padding: 10px; background: #0284c7; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; }
 
         .btn-group { display: flex; flex-direction: column; gap: 10px; }
-        .btn { display: block; padding: 12px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 9.5pt; color: white; border: none; cursor: pointer; text-align: center; transition: transform 0.1s; }
+        .btn { display: block; padding: 12px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 9.5pt; color: white; border: none; cursor: pointer; text-align: center; transition: transform 0.1s; box-sizing: border-box; }
         .btn:active { transform: scale(0.98); }
         
         .btn-pdf-dl { background-color: #7c3aed; }
@@ -102,6 +102,7 @@
     const el = urlParams.get('el') || '';
     const ot = urlParams.get('ot') || '';
 
+    // General Manager / HR WhatsApp Number
     const gmPhone = "601116316020"; 
     const githubBaseUrl = "https://bbc-off.github.io/leave-application/status.html";
     const githubFormUrl = "https://bbc-off.github.io/leave-application/index.html";
@@ -159,6 +160,7 @@
         var authSection = document.getElementById('authSection');
         var actionArea = document.getElementById('actionArea');
 
+        // Cinema Manager PIN: 1717 | General Manager PIN: 1919
         if ((role === 'cm' && enteredPass === '1717') || (role === 'gm' && enteredPass === '1919')) {
             authSection.style.display = 'none';
             actionArea.style.display = 'flex';
@@ -233,21 +235,31 @@
         }
     }
 
+    function sendToGM() {
+        var currentSearch = window.location.search;
+        // Search query-ல் உள்ள role=cm என்பதை role=gm என மாற்றுதல்
+        var gmSearch = currentSearch.replace('role=cm', 'role=gm');
+        if (!gmSearch.includes('role=gm')) {
+            gmSearch += '&role=gm';
+        }
+        var gmLink = githubBaseUrl + gmSearch;
+
+        var gmMessage = "📋 *LEAVE APPLICATION (FORWARDED BY CM)*\n" +
+                        "------------------------------------\n" +
+                        "🏢 *Branch:* " + branch + "\n" +
+                        "👤 *Staff:* " + staff + " (ID: " + id + ")\n" +
+                        "👍 *CM Recommendation:* RECOMMENDED / APPROVED ✅\n\n" +
+                        "🔗 *GM / HR APPROVAL LINK:*\n" + gmLink;
+
+        var waUrl = "https://api.whatsapp.com/send?phone=" + gmPhone + "&text=" + encodeURIComponent(gmMessage);
+        window.open(waUrl, '_blank');
+    }
+
     function loadPortalButtons() {
         var actionArea = document.getElementById('actionArea');
 
         if (role === 'cm') {
-            var currentParams = window.location.search.replace('role=cm', 'role=gm');
-            var gmLink = githubBaseUrl + currentParams;
-            
             var approveStaffMsg = "Hello " + staff + ", your leave request for " + branch + " has been APPROVED by Cinema Manager. ✅\n\nView Approved Schedule:\n" + githubFormUrl;
-            
-            var gmMessage = "📋 *LEAVE APPLICATION (FORWARDED BY CM)*\n" +
-                            "------------------------------------\n" +
-                            "🏢 *Branch:* " + branch + "\n" +
-                            "👤 *Staff:* " + staff + " (ID: " + id + ")\n" +
-                            "👍 *CM Recommendation:* RECOMMENDED / APPROVED ✅\n\n" +
-                            "🔗 *GM / HR APPROVAL LINK:*\n" + gmLink;
 
             actionArea.innerHTML = `
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
@@ -256,9 +268,9 @@
                 <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(approveStaffMsg)}'; });">
                     ✅ Approved - Send to Staff
                 </button>
-                <a class="btn btn-forward" href="https://api.whatsapp.com/phone=${gmPhone}&text=${encodeURIComponent(gmMessage)}">
+                <button class="btn btn-forward" onclick="sendToGM()">
                     📲 Send Application to GM
-                </a>
+                </button>
                 <button class="btn btn-reject" onclick="handleRejection('Cinema Manager')">
                     ❌ Reject Request
                 </button>
@@ -270,7 +282,7 @@
                 <button class="btn btn-pdf-dl" onclick="downloadFilledPDF()">
                     📥 Download Completed Staff PDF
                 </button>
-                <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/text=${encodeURIComponent(finalApproveMsg)}'; });">
+                <button class="btn btn-approve" onclick="saveApprovedLeaveToGoogleSheet(function(){ window.location.href='https://api.whatsapp.com/send?text=${encodeURIComponent(finalApproveMsg)}'; });">
                     ✅ Final Approve
                 </button>
                 <button class="btn btn-reject" onclick="handleRejection('General Manager / HR')">
